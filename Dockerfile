@@ -1,5 +1,28 @@
-FROM openjdk:21-jdk-slim
-WORKDIR /app
-COPY target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java","-jar","app.jar"]
+# ---------- Build stage ----------
+    FROM maven:3.9.6-eclipse-temurin-21 AS builder
+    WORKDIR /app
+    
+    # Install git to allow repo cloning
+    RUN apt-get update && apt-get install -y git
+    
+    # Clone your backend repo
+    RUN git clone https://github.com/Nad2005/backend.git .
+    
+    # Build the Spring Boot JAR (cache Maven dependencies for speed)
+    RUN --mount=type=cache,target=/root/.m2 mvn clean install package -DskipTests
+    
+    # ---------- Run stage ----------
+    FROM eclipse-temurin:21-jre-alpine
+    WORKDIR /app
+    
+    # Copy jar from builder stage
+    COPY --from=builder /app/target/*.jar app.jar
+    
+    # Expose backend port
+    EXPOSE 8081
+    
+    # Optional JVM opts
+    ENV JAVA_OPTS=""
+    
+    ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+    
